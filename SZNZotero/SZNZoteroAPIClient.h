@@ -180,6 +180,10 @@ typedef NS_ENUM(NSUInteger, SZNZoteroAccessLevel) {
 
 - (void)resetObserver;
 
+- (NSMutableURLRequest *)nonAuthRequestWithMethod:(NSString *)method
+											 path:(NSString *)path
+									   parameters:(NSDictionary *)parameters;
+
 @end
 
 

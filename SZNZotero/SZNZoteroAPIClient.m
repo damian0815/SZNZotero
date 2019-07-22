@@ -165,10 +165,9 @@
     }];
 }
 
-- (NSString *)authorizationHeaderForMethod:(NSString *)method
-                                      path:(NSString *)path
-                                parameters:(NSDictionary *)parameters {
-    return [NSString stringWithFormat:@"Bearer %@", self.accessToken.key];
+- (NSString *)alreadyLoggedInAuthorizationHeader {
+	NSAssert(self.accessToken.key, @"must be logged in");
+	return [NSString stringWithFormat:@"Bearer %@", self.accessToken.key];
 }
 
 - (BOOL)isLoggedIn {
@@ -178,9 +177,26 @@
 #pragma mark -
 
 - (NSMutableURLRequest *)requestWithMethod:(NSString *)method
+									  path:(NSString *)path
+								parameters:(NSDictionary *)parameters {
+	return [self requestWithMethod:method path:path parameters:parameters useBearerAuth:NO];
+}
+
+- (NSMutableURLRequest *)nonAuthRequestWithMethod:(NSString *)method
+											 path:(NSString *)path
+									   parameters:(NSDictionary *)parameters {
+	return [self requestWithMethod:method path:path parameters:parameters useBearerAuth:YES];
+}
+
+- (NSMutableURLRequest *)requestWithMethod:(NSString *)method
                                       path:(NSString *)path
-                                parameters:(NSDictionary *)parameters {
+                                parameters:(NSDictionary *)parameters
+							 useBearerAuth:(BOOL)useBearerAuth {
     NSMutableURLRequest *request = [super requestWithMethod:method path:path parameters:parameters];
+	
+	if (useBearerAuth && self.accessToken.key) {
+		[request setValue:[self alreadyLoggedInAuthorizationHeader] forHTTPHeaderField:@"Authorization"];
+	}
 
     // POST requests body for the Zotero API must have an array as the root object
     // (isn’t possible with the default AFNetworking implementation)
@@ -223,7 +239,7 @@
      parameters:(nullable NSDictionary *)parameters
         success:(nonnull void (^)(id __nullable responseObject))success
         failure:(nonnull void (^)(NSError * __nullable error))failure {
-    NSURLRequest *request = [self requestWithMethod:@"GET" path:path parameters:parameters];
+    NSURLRequest *request = [self nonAuthRequestWithMethod:@"GET" path:path parameters:parameters];
 
     AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
     [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
@@ -247,7 +263,7 @@
      parameters:(nullable NSDictionary *)parameters
         success:(nonnull void (^)(id __nullable responseObject))success
         failure:(nonnull void (^)(NSError * __nullable error))failure {
-    NSURLRequest *request = [self requestWithMethod:@"PUT" path:path parameters:parameters];
+    NSURLRequest *request = [self nonAuthRequestWithMethod:@"PUT" path:path parameters:parameters];
 
     AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
     [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
@@ -272,7 +288,7 @@
          headers:(nullable NSDictionary *)headers
          success:(nonnull void (^)(id __nullable responseObject))success
          failure:(nonnull void (^)(NSError * __nullable error))failure {
-    NSMutableURLRequest *request = [self requestWithMethod:@"POST" path:path parameters:parameters];
+    NSMutableURLRequest *request = [self nonAuthRequestWithMethod:@"POST" path:path parameters:parameters];
     [headers enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
         [request setValue:obj forHTTPHeaderField:key];
     }];
@@ -299,7 +315,7 @@
        parameters:(nullable NSDictionary *)parameters
           success:(nonnull void (^)(id __nullable responseObject))success
           failure:(nonnull void (^)(NSError * __nullable error))failure {
-    NSURLRequest *request = [self requestWithMethod:@"PATCH" path:path parameters:parameters];
+    NSURLRequest *request = [self nonAuthRequestWithMethod:@"PATCH" path:path parameters:parameters];
 
     AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
     [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
@@ -324,7 +340,7 @@
            success:(nonnull void (^)())success
            failure:(nonnull void (^)(NSError * __nullable error))failure {
     NSNumber *itemVersion = parameters[@"itemVersion"];
-    NSMutableURLRequest *request = [self requestWithMethod:@"DELETE" path:path parameters:parameters];
+    NSMutableURLRequest *request = [self nonAuthRequestWithMethod:@"DELETE" path:path parameters:parameters];
     [request setValue:[itemVersion stringValue] forHTTPHeaderField:@"If-Unmodified-Since-Version"];
 
     AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
@@ -352,7 +368,7 @@
                            accessMethod:(NSString *)accessMethod
                                 success:(void (^)(AFOAuth1Token *accessToken, id responseObject))success
                                 failure:(void (^)(NSError *error))failure {
-    self.accessToken = requestToken;
+	self.accessToken = requestToken;
 
     NSMutableDictionary *parameters = [[self OAuthParameters] mutableCopy];
     [parameters setValue:requestToken.key forKey:@"oauth_token"];

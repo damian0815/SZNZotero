@@ -269,7 +269,7 @@
 
 - (NSURLRequest *)fileURLRequest {
     NSString *path = [[self path] stringByAppendingPathComponent:@"file"];
-    return [self.library.client requestWithMethod:@"GET" path:path parameters:nil];
+	return [self.library.client nonAuthRequestWithMethod:@"GET" path:path parameters:nil];
 }
 
 #pragma mark - Update
